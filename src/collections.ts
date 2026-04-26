@@ -39,8 +39,21 @@ export const createIcpayPaymentsCollection = (
   ]
 });
 
-export const createIcpaySettingsGlobal = (): GlobalConfig => ({
+export const createIcpaySettingsGlobal = (adminExtras?: {
+  beforeDocumentControlsClearPath?: string;
+}): GlobalConfig => ({
   slug: 'icpay-settings',
+  admin: {
+    ...(adminExtras?.beforeDocumentControlsClearPath
+      ? {
+          components: {
+            elements: {
+              beforeDocumentControls: [adminExtras.beforeDocumentControlsClearPath]
+            }
+          }
+        }
+      : {})
+  },
   fields: [
     { name: 'publishableKey', type: 'text' },
     { name: 'secretKey', type: 'text' },

@@ -5,7 +5,10 @@ import {
   createIcpaySettingsGlobal
 } from './collections';
 import type { IcpayPluginOptions } from './types';
-import { resolveIcpaySyncPaymentsButtonPath } from './resolveSyncButtonPath';
+import {
+  resolveIcpayClearPaymentsSettingsButtonPath,
+  resolveIcpaySyncPaymentsButtonPath
+} from './resolveSyncButtonPath';
 
 const defaults = (options: IcpayPluginOptions): Required<Pick<IcpayPluginOptions, 'enabled'>> => ({
   enabled: options.enabled ?? true
@@ -43,7 +46,15 @@ export const icpayPayloadPlugin =
     }
 
     if (opts.createGlobalSettings ?? true) {
-      globals.push(createIcpaySettingsGlobal());
+      const clearPath =
+        opts.enableClearPaymentsSettingsButton !== false
+          ? resolveIcpayClearPaymentsSettingsButtonPath()
+          : undefined;
+      globals.push(
+        createIcpaySettingsGlobal(
+          clearPath ? { beforeDocumentControlsClearPath: clearPath } : undefined
+        )
+      );
     }
 
     endpoints.push(...createIcpayEndpoints(opts));
