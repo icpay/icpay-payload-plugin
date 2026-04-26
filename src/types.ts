@@ -39,13 +39,13 @@ export type IcpayPluginCollections = {
 
 export type IcpaySyncOptions = {
   /**
-   * Relative path on `sdk.apiUrl` used by sync endpoint.
-   * Must return either `{ items: [...] }` or an array.
+   * Path on `apiUrl` for listing payments (icpay-api default: `GET /sdk/payments` with `Authorization: Bearer <secretKey>`).
+   * Response must be a JSON array or `{ items: [...] }`; each item may match icpay-api `{ payment, intent, transaction, ... }`.
    */
   endpointPath?: string;
   method?: 'GET' | 'POST';
   /**
-   * Max items to request per sync call.
+   * When set, appended as `?limit=` (icpay-api list endpoint ignores it; useful for custom backends).
    */
   limit?: number;
 };
@@ -65,6 +65,11 @@ export type IcpayPluginOptions = {
    * Resolved via package export `@ic-pay/payload-plugin-icpay/icpay-sync-payments`.
    */
   enableSyncPaymentsButton?: boolean;
+  /**
+   * When true (default), adds a destructive “clear payments” control on Globals → icpay-settings.
+   * Resolved via `@ic-pay/payload-plugin-icpay/icpay-clear-payments`.
+   */
+  enableClearPaymentsSettingsButton?: boolean;
   defaults?: {
     fiatCurrency?: string;
     recipientAddress?: string;

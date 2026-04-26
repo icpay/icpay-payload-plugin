@@ -77,17 +77,17 @@ Pulls payments from icpay-api and upserts into `icpay-payments`.
 
 Defaults:
 
-- path: `/sdk/private/payments`
-- auth: `Authorization: Bearer <secretKey>`
+- path: **`/sdk/payments`** (icpay-api `SdkPaymentsController`, secret key bearer — plain `fetch`, not the JS SDK)
+- auth: `Authorization: Bearer <secretKey>` from Globals → icpay-settings (or plugin `sdk`)
 - source flag in DB: `sync`
 
 You can override sync behavior with plugin option:
 
 ```ts
 sync: {
-  endpointPath: '/sdk/private/payments',
+  endpointPath: '/sdk/payments',
   method: 'GET',
-  limit: 100,
+  limit: 100 // optional `?limit=` for non–icpay-api backends
 }
 ```
 
@@ -106,6 +106,7 @@ Webhook confirmations are upserted directly into `icpay-payments` (`source: webh
 - `icpay-payments` is read-only from admin (`create/update/delete` disabled)
 - no separate webhook collection is created
 - **Sync button** (default on): above the payments list, calls `POST /api/icpay/sync-payments` with the admin session and refreshes the list. The component is exposed as the package subpath `@ic-pay/payload-plugin-icpay/icpay-sync-payments` (not a filesystem path) so `payload generate:importmap` and Next resolve it in Docker and locally. Requires `next`, `@payloadcms/ui`, and `transpilePackages: ['@ic-pay/payload-plugin-icpay']` in `next.config`.
+- **Clear payments** (default on): on **Globals → icpay-settings**, a danger-zone control calls `POST /api/icpay/clear-payments` (admin session) to delete every document in `icpay-payments`, with browser confirm + on-screen warning. Subpath: `@ic-pay/payload-plugin-icpay/icpay-clear-payments`.
 - use the sync endpoint (or your own scheduler) to pull historical records from icpay-api
 
 Configure **publishable key, secret key, API URL, webhook secret** in **Globals → icpay-settings**. Optional plugin `sdk` values merge as fallbacks when a global field is empty.

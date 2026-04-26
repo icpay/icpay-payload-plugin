@@ -76,11 +76,23 @@ const getSettings = async (req: PayloadRequest): Promise<Record<string, unknown>
 };
 
 const normalizePaymentRecord = (sourcePayment: any): Record<string, unknown> => {
-  const paymentIntent = sourcePayment?.paymentIntent ?? sourcePayment?.intent ?? sourcePayment ?? {};
-  const payment = sourcePayment?.payment ?? sourcePayment ?? {};
+  // icpay-api `GET /sdk/payments` returns `{ payment, intent, invoice, transaction }` per row.
+  const paymentIntent =
+    sourcePayment?.paymentIntent ?? sourcePayment?.intent ?? sourcePayment ?? {};
+  const payment = sourcePayment?.payment ?? {};
+  const tx = sourcePayment?.transaction;
   const paymentIntentId = String(
-    paymentIntent?.id ?? payment?.paymentIntentId ?? sourcePayment?.paymentIntentId ?? ''
+    paymentIntent?.id ??
+      payment?.paymentIntentId ??
+      sourcePayment?.paymentIntentId ??
+      ''
   );
+  const rawTxId =
+    payment?.transactionId ?? tx?.id ?? sourcePayment?.transactionId ?? null;
+  const txIdParsed =
+    rawTxId != null && String(rawTxId).trim() !== '' && !Number.isNaN(Number(rawTxId))
+      ? Number(rawTxId)
+      : null;
   return {
     kind: String(paymentIntent?.metadata?.icpay_kind ?? 'payment'),
     status: String(paymentIntent?.status ?? payment?.status ?? 'pending'),
@@ -90,14 +102,14 @@ const normalizePaymentRecord = (sourcePayment: any): Record<string, unknown> => 
         : payment?.amountUsd != null
           ? Number(payment.amountUsd)
           : null,
-    fiatCurrency: String(paymentIntent?.fiatCurrency ?? paymentIntent?.fiat_currency ?? 'USD'),
+    fiatCurrency: String(
+      paymentIntent?.fiatCurrencyCode ??
+        paymentIntent?.fiatCurrency ??
+        paymentIntent?.fiat_currency ??
+        'USD'
+    ),
     paymentIntentId: paymentIntentId || 'unknown',
-    transactionId:
-      payment?.transactionId != null
-        ? Number(payment.transactionId)
-        : sourcePayment?.transactionId != null
-          ? Number(sourcePayment.transactionId)
-          : null,
+    transactionId: txIdParsed,
     checkoutUrl: paymentIntent?.checkoutUrl ?? payment?.checkoutUrl ?? null,
     metadata: (paymentIntent?.metadata ?? payment?.metadata ?? {}) as Record<string, unknown>,
     raw: sourcePayment as Record<string, unknown>
@@ -197,10 +209,16 @@ export const createIcpayEndpoints = (options: IcpayPluginOptions): Endpoint[] =>
         return json(400, { ok: false, error: 'apiUrl and secretKey are required (options or icpay-settings).' });
       }
 
-      const endpointPath = options.sync?.endpointPath ?? '/sdk/private/payments';
+      // icpay-api: `SdkPaymentsController` @ `sdk/payments` + SecretKeyAuthGuard (Bearer secret).
+      const endpointPath = options.sync?.endpointPath ?? '/sdk/payments';
       const method = options.sync?.method ?? 'GET';
-      const limit = body.limit ?? options.sync?.limit ?? 100;
-      const target = `${apiUrl}${endpointPath}${endpointPath.includes('?') ? '&' : '?'}limit=${encodeURIComponent(String(limit))}`;
+      const path = endpointPath.startsWith('/') ? endpointPath : `/${endpointPath}`;
+      const targetUrl = new URL(path, `${apiUrl.replace(/\/$/, '')}/`);
+      const limit = body.limit ?? options.sync?.limit;
+      if (limit != null) {
+        targetUrl.searchParams.set('limit', String(limit));
+      }
+      const target = targetUrl.href;
 
       const response = await fetch(target, {
         method,
@@ -305,5 +323,51 @@ export const createIcpayEndpoints = (options: IcpayPluginOptions): Endpoint[] =>
     }
   };
 
-  return [createPaymentEndpoint, syncEndpointPost, syncEndpointGet, webhookEndpoint, ...(options.additionalEndpoints ?? [])];
+  const clearPaymentsEndpoint: Endpoint = {
+    path: `${basePath}/clear-payments`,
+    method: 'post',
+    handler: async (req) => {
+      try {
+        const user = (req as { user?: unknown }).user;
+        if (!user) {
+          return json(401, { ok: false, error: 'You must be signed in to the admin.' });
+        }
+        let deleted = 0;
+        for (;;) {
+          const page = await req.payload.find({
+            collection: paymentsCollection,
+            limit: 200,
+            page: 1,
+            depth: 0,
+            overrideAccess: true
+          });
+          const docs = (page as { docs?: { id: string | number }[] }).docs ?? [];
+          if (!docs.length) break;
+          for (const doc of docs) {
+            await req.payload.delete({
+              collection: paymentsCollection,
+              id: doc.id,
+              overrideAccess: true
+            });
+            deleted += 1;
+          }
+        }
+        return json(200, { ok: true, deleted });
+      } catch (error: any) {
+        return json(500, {
+          ok: false,
+          error: error?.message ?? 'Failed to clear payments.'
+        });
+      }
+    }
+  };
+
+  return [
+    createPaymentEndpoint,
+    syncEndpointPost,
+    syncEndpointGet,
+    clearPaymentsEndpoint,
+    webhookEndpoint,
+    ...(options.additionalEndpoints ?? [])
+  ];
 };

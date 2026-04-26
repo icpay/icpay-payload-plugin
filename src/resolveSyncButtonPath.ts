@@ -7,3 +7,8 @@
 export function resolveIcpaySyncPaymentsButtonPath(): string {
   return '@ic-pay/payload-plugin-icpay/icpay-sync-payments#IcpaySyncPaymentsButton';
 }
+
+/** Globals → icpay-settings: delete every `icpay-payments` document (admin-only). */
+export function resolveIcpayClearPaymentsSettingsButtonPath(): string {
+  return '@ic-pay/payload-plugin-icpay/icpay-clear-payments#IcpayClearPaymentsSettingsButton';
+}
