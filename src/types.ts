@@ -35,7 +35,19 @@ export type IcpayWebhookRecord = {
 
 export type IcpayPluginCollections = {
   payments?: CollectionSlug;
-  webhooks?: CollectionSlug;
+};
+
+export type IcpaySyncOptions = {
+  /**
+   * Relative path on `sdk.apiUrl` used by sync endpoint.
+   * Must return either `{ items: [...] }` or an array.
+   */
+  endpointPath?: string;
+  method?: 'GET' | 'POST';
+  /**
+   * Max items to request per sync call.
+   */
+  limit?: number;
 };
 
 export type IcpayPluginOptions = {
@@ -43,7 +55,16 @@ export type IcpayPluginOptions = {
   slug?: string;
   apiBasePath?: string;
   collections?: IcpayPluginCollections;
-  sdk: Pick<IcpayConfig, 'publishableKey' | 'secretKey' | 'apiUrl' | 'icHost' | 'debug'>;
+  /**
+   * Optional SDK defaults (env). Prefer configuring `icpay-settings` global in admin:
+   * publishableKey, secretKey, apiUrl, webhookSecret.
+   */
+  sdk?: Partial<Pick<IcpayConfig, 'publishableKey' | 'secretKey' | 'apiUrl' | 'icHost' | 'debug'>>;
+  /**
+   * When true (default), registers a beforeList button on `icpay-payments` to call sync endpoint.
+   * Requires package `src/admin/IcpaySyncPaymentsButton.tsx` on disk (included in npm package).
+   */
+  enableSyncPaymentsButton?: boolean;
   defaults?: {
     fiatCurrency?: string;
     recipientAddress?: string;
@@ -56,6 +77,7 @@ export type IcpayPluginOptions = {
   };
   allowedKinds?: IcpayCheckoutKind[];
   webhookSecret?: string;
+  sync?: IcpaySyncOptions;
   createCollections?: boolean;
   createGlobalSettings?: boolean;
   additionalEndpoints?: Endpoint[];
@@ -83,6 +105,8 @@ export type IcpayPluginOptions = {
 
 export type IcpayGlobalSettings = {
   publishableKey?: string;
+  secretKey?: string;
+  webhookSecret?: string;
   apiUrl?: string;
   defaultFiatCurrency?: string;
   defaultRecipientAddress?: string;

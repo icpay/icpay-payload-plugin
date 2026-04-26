@@ -2,10 +2,10 @@ import type { Config } from 'payload';
 import { createIcpayEndpoints } from './endpoints';
 import {
   createIcpayPaymentsCollection,
-  createIcpaySettingsGlobal,
-  createIcpayWebhooksCollection
+  createIcpaySettingsGlobal
 } from './collections';
 import type { IcpayPluginOptions } from './types';
+import { resolveIcpaySyncPaymentsButtonPath } from './resolveSyncButtonPath';
 
 const defaults = (options: IcpayPluginOptions): Required<Pick<IcpayPluginOptions, 'enabled'>> => ({
   enabled: options.enabled ?? true
@@ -32,8 +32,11 @@ export const icpayPayloadPlugin =
     const endpoints = [...(config.endpoints ?? [])];
 
     if (opts.createCollections ?? true) {
-      collections.push(createIcpayPaymentsCollection(opts));
-      collections.push(createIcpayWebhooksCollection(opts));
+      const beforeListSyncButtonPath =
+        opts.enableSyncPaymentsButton !== false ? resolveIcpaySyncPaymentsButtonPath() : undefined;
+      collections.push(
+        createIcpayPaymentsCollection(opts, beforeListSyncButtonPath ? { beforeListSyncButtonPath } : undefined)
+      );
     }
 
     if (opts.createGlobalSettings ?? true) {

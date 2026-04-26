@@ -3,7 +3,8 @@
 `@ic-pay/payload-plugin-icpay` is a Payload CMS plugin that adds:
 
 - ICPay server endpoints for creating and tracking payments
-- Optional collections/globals for payment and webhook observability
+- Read-only `icpay-payments` storage populated by webhook/sync (not manual admin creation)
+- Global settings for API URL + publishable/secret/webhook keys
 - React widget helpers powered by `@ic-pay/icpay-widget` (payments, donations, topups)
 - Optional bridge helpers for Payload ecommerce plugin payment hooks
 
@@ -28,12 +29,8 @@ export default buildConfig({
   plugins: [
     icpayPayloadPlugin({
       enabled: true,
-      sdk: {
-        publishableKey: process.env.ICPAY_PUBLISHABLE_KEY!,
-        secretKey: process.env.ICPAY_SECRET_KEY!,
-        apiUrl: process.env.ICPAY_API_URL ?? 'https://api.icpay.org'
-      },
-      webhookSecret: process.env.ICPAY_WEBHOOK_SECRET,
+      // Optional: `sdk` env defaults; otherwise configure Admin → Globals → icpay-settings.
+      // sdk: { publishableKey: '...', secretKey: '...', apiUrl: 'https://api.icpay.org' },
       defaults: {
         fiatCurrency: 'USD'
       }
@@ -47,11 +44,10 @@ export default buildConfig({
 By default (`createCollections` and `createGlobalSettings` are `true`):
 
 - Collection `icpay-payments`
-- Collection `icpay-webhooks`
 - Global `icpay-settings`
 - Endpoints:
   - `POST /api/icpay/create-payment`
-  - `POST /api/icpay/notify`
+  - `POST /api/icpay/sync-payments`
   - `POST /api/icpay/webhook`
 
 ## Endpoints
@@ -75,6 +71,26 @@ Example request:
 }
 ```
 
+### `POST /api/icpay/sync-payments`
+
+Pulls payments from icpay-api and upserts into `icpay-payments`.
+
+Defaults:
+
+- path: `/sdk/private/payments`
+- auth: `Authorization: Bearer <secretKey>`
+- source flag in DB: `sync`
+
+You can override sync behavior with plugin option:
+
+```ts
+sync: {
+  endpointPath: '/sdk/private/payments',
+  method: 'GET',
+  limit: 100,
+}
+```
+
 ### `POST /api/icpay/webhook`
 
 Receives ICPay webhook payloads and optionally checks the request signature with:
@@ -83,6 +99,16 @@ Receives ICPay webhook payloads and optionally checks the request signature with
 - or `x-icpay-webhook-signature`
 
 If `webhookSecret` is set, one of those headers must match it.
+Webhook confirmations are upserted directly into `icpay-payments` (`source: webhook`).
+
+## Admin behavior
+
+- `icpay-payments` is read-only from admin (`create/update/delete` disabled)
+- no separate webhook collection is created
+- **Sync button** (default on): above the payments list, calls `POST /api/icpay/sync-payments` with the admin session and refreshes the list. Requires `next`, `@payloadcms/ui`, and `payload generate:importmap` so the client component resolves.
+- use the sync endpoint (or your own scheduler) to pull historical records from icpay-api
+
+Configure **publishable key, secret key, API URL, webhook secret** in **Globals → icpay-settings**. Optional plugin `sdk` values merge as fallbacks when a global field is empty.
 
 ## Widget Helpers (Frontend / Next.js)
 

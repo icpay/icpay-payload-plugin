@@ -7,5 +7,5 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   splitting: false,
-  external: ['payload', 'react', 'react-dom']
+  external: ['payload', 'react', 'react-dom', 'next', '@payloadcms/ui', '@payloadcms/next']
 });
