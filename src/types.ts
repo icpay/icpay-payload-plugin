@@ -62,7 +62,7 @@ export type IcpayPluginOptions = {
   sdk?: Partial<Pick<IcpayConfig, 'publishableKey' | 'secretKey' | 'apiUrl' | 'icHost' | 'debug'>>;
   /**
    * When true (default), registers a beforeList button on `icpay-payments` to call sync endpoint.
-   * Requires package `src/admin/IcpaySyncPaymentsButton.tsx` on disk (included in npm package).
+   * Resolved via package export `@ic-pay/payload-plugin-icpay/icpay-sync-payments`.
    */
   enableSyncPaymentsButton?: boolean;
   defaults?: {
