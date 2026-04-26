@@ -1,0 +1,70 @@
+{
+  "name": "@ic-pay/payload-plugin-icpay",
+  "version": "0.1.0",
+  "description": "ICPay plugin for Payload CMS with payment endpoints, widget helpers, and optional commerce hooks.",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://github.com/icpay/payload-plugin-icpay#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/icpay/payload-plugin-icpay.git"
+  },
+  "bugs": {
+    "url": "https://github.com/icpay/payload-plugin-icpay/issues"
+  },
+  "keywords": [
+    "payload",
+    "payload-plugin",
+    "icpay",
+    "payments",
+    "donations",
+    "topups",
+    "widget",
+    "ecommerce"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./widgets": {
+      "import": "./dist/widgets.js",
+      "types": "./dist/widgets.d.ts"
+    },
+    "./commerce": {
+      "import": "./dist/commerce/index.js",
+      "types": "./dist/commerce/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "payload": "^3.0.0",
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "dependencies": {
+    "@ic-pay/icpay-sdk": "^1.4.109",
+    "@ic-pay/icpay-widget": "^1.2.122"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "@types/react": "^19.2.2",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
