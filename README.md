@@ -105,7 +105,7 @@ Webhook confirmations are upserted directly into `icpay-payments` (`source: webh
 
 - `icpay-payments` is read-only from admin (`create/update/delete` disabled)
 - no separate webhook collection is created
-- **Sync button** (default on): above the payments list, calls `POST /api/icpay/sync-payments` with the admin session and refreshes the list. Requires `next`, `@payloadcms/ui`, and `payload generate:importmap` so the client component resolves.
+- **Sync button** (default on): above the payments list, calls `POST /api/icpay/sync-payments` with the admin session and refreshes the list. The component is exposed as the package subpath `@ic-pay/payload-plugin-icpay/icpay-sync-payments` (not a filesystem path) so `payload generate:importmap` and Next resolve it in Docker and locally. Requires `next`, `@payloadcms/ui`, and `transpilePackages: ['@ic-pay/payload-plugin-icpay']` in `next.config`.
 - use the sync endpoint (or your own scheduler) to pull historical records from icpay-api
 
 Configure **publishable key, secret key, API URL, webhook secret** in **Globals → icpay-settings**. Optional plugin `sdk` values merge as fallbacks when a global field is empty.

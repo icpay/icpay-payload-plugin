@@ -35,7 +35,10 @@ export const icpayPayloadPlugin =
       const beforeListSyncButtonPath =
         opts.enableSyncPaymentsButton !== false ? resolveIcpaySyncPaymentsButtonPath() : undefined;
       collections.push(
-        createIcpayPaymentsCollection(opts, beforeListSyncButtonPath ? { beforeListSyncButtonPath } : undefined)
+        createIcpayPaymentsCollection(
+          opts,
+          beforeListSyncButtonPath ? { beforeListSyncButtonPath } : undefined
+        )
       );
     }
 
