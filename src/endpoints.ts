@@ -35,7 +35,7 @@ const upsertPayment = async (
   try {
     if (paymentIntentId) {
       const existing = await req.payload.find({
-        collection,
+        collection: collection as any,
         where: {
           paymentIntentId: {
             equals: paymentIntentId
@@ -48,7 +48,7 @@ const upsertPayment = async (
       const existingDoc = Array.isArray((existing as any)?.docs) ? (existing as any).docs[0] : null;
       if (existingDoc?.id) {
         await req.payload.update({
-          collection,
+          collection: collection as any,
           id: existingDoc.id,
           data,
           overrideAccess: true
@@ -57,7 +57,7 @@ const upsertPayment = async (
       }
     }
 
-    await req.payload.create({ collection, data, overrideAccess: true });
+    await req.payload.create({ collection: collection as any, data, overrideAccess: true });
   } catch {
     // Endpoint should continue even if storage fails.
   }
@@ -69,7 +69,7 @@ const getSettings = async (req: PayloadRequest): Promise<Record<string, unknown>
       slug: 'icpay-settings',
       overrideAccess: true
     });
-    return (settings ?? {}) as Record<string, unknown>;
+    return (settings ?? {}) as unknown as Record<string, unknown>;
   } catch {
     return {};
   }
@@ -389,7 +389,7 @@ export const createIcpayEndpoints = (options: IcpayPluginOptions): Endpoint[] =>
         let deleted = 0;
         for (;;) {
           const page = await req.payload.find({
-            collection: paymentsCollection,
+            collection: paymentsCollection as any,
             limit: 200,
             page: 1,
             depth: 0,
@@ -399,7 +399,7 @@ export const createIcpayEndpoints = (options: IcpayPluginOptions): Endpoint[] =>
           if (!docs.length) break;
           for (const doc of docs) {
             await req.payload.delete({
-              collection: paymentsCollection,
+              collection: paymentsCollection as any,
               id: doc.id,
               overrideAccess: true
             });

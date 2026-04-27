@@ -12,11 +12,11 @@ export const createIcpayPaymentsCollection = (
   adminExtras?: { beforeListSyncButtonPath?: string }
 ): CollectionConfig => ({
   slug: options.collections?.payments ?? 'icpay-payments',
+  defaultSort: '-createdAt',
   // Source times from ICPay only (sync / webhook / API); not Payload ingest time.
   timestamps: false,
   admin: {
     useAsTitle: 'paymentIntentId',
-    defaultSort: '-createdAt',
     description:
       'Read-only payment records. Use “Sync payments from ICPay API” below or GET/POST /api/icpay/sync-payments.',
     ...(adminExtras?.beforeListSyncButtonPath
