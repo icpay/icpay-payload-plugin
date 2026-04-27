@@ -14,6 +14,16 @@ export type IcpayMetadataEntry = {
 export function normalizeWidgetMetadata(raw: unknown): Record<string, unknown> | undefined {
   if (raw == null) return undefined;
 
+  if (typeof raw === 'string') {
+    const t = raw.trim();
+    if (!t) return undefined;
+    try {
+      return normalizeWidgetMetadata(JSON.parse(t));
+    } catch {
+      return undefined;
+    }
+  }
+
   if (Array.isArray(raw)) {
     const out: Record<string, unknown> = {};
     for (const row of raw) {

@@ -17,10 +17,28 @@ export type IcpayRichTextProps = {
   className?: string;
 };
 
+function parseLexicalJsonLikeField(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  const t = value.trim();
+  if (!t) return value;
+  try {
+    return JSON.parse(t);
+  } catch {
+    return value;
+  }
+}
+
 /** Strip Lexical block envelope fields before passing widget props to the renderer. */
 export function lexicalIcpayFieldsToBlockData(fields: Record<string, unknown>): IcpayLexicalWidgetBlockData {
   const { id: _id, blockName: _blockName, blockType: _blockType, ...rest } = fields;
-  return rest;
+  const out = { ...rest } as Record<string, unknown>;
+  if ('allowedTokenShortcodes' in out) {
+    out.allowedTokenShortcodes = parseLexicalJsonLikeField(out.allowedTokenShortcodes);
+  }
+  if ('metadata' in out) {
+    out.metadata = parseLexicalJsonLikeField(out.metadata);
+  }
+  return out as IcpayLexicalWidgetBlockData;
 }
 
 /**

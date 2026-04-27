@@ -17,6 +17,8 @@ export type IcpayWidgetBaseProps = {
   metadata?: Record<string, unknown>;
   /** When set, checkout only offers these ledger shortcodes (see `@ic-pay/icpay-widget` `CommonConfig`). */
   tokenShortcodes?: string[];
+  /** When set with token filter, limits wallet selector to these chain types (from picker / API `chainType`). */
+  chainTypes?: Array<'ic' | 'evm' | 'sol' | 'stripe'>;
   onSuccess?: (detail: unknown) => void;
   onError?: (detail: unknown) => void;
 };
@@ -47,6 +49,7 @@ const sharedConfig = (mode: WidgetMode, props: IcpayWidgetBaseProps) => ({
   recipientAddress: props.recipientAddress,
   recipientAddresses: props.recipientAddresses,
   ...(props.tokenShortcodes?.length ? { tokenShortcodes: props.tokenShortcodes } : {}),
+  ...(props.chainTypes?.length ? { chainTypes: props.chainTypes } : {}),
   metadata: {
     ...(props.metadata ?? {}),
     icpay_context: `payload-plugin:${mode}`
