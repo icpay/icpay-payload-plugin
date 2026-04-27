@@ -74,6 +74,8 @@ Optional: add a standalone `blocks` field elsewhere using `createIcpayWidgetsFie
 
 **2. Frontend — render Lexical JSON and map embedded widgets** (e.g. Next.js App Router):
 
+The `lexical-react` entry is a **Client Component** (`'use client'`), because `@payloadcms/richtext-lexical/react`’s `RichText` uses client hooks. You may import `IcpayRichText` from a **Server Component** (e.g. a `page.tsx`); Next will render it as a client boundary.
+
 ```tsx
 import { IcpayRichText } from '@ic-pay/payload-plugin-icpay/lexical-react';
 
