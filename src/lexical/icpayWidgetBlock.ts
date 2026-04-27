@@ -35,7 +35,47 @@ export const icpayWidgetBlock: Block = {
           'Optional. If empty, the default recipient from Globals → icpay-settings is used when configured.'
       }
     },
-    { name: 'metadata', type: 'json' },
+    {
+      name: 'metadata',
+      type: 'array',
+      labels: { singular: 'Metadata row', plural: 'Metadata' },
+      admin: {
+        description:
+          'Optional key–value pairs sent with checkout (like WordPress / WooCommerce custom fields). Add rows dynamically; no raw JSON.',
+        initCollapsed: true
+      },
+      fields: [
+        {
+          name: 'key',
+          type: 'text',
+          required: true,
+          admin: { placeholder: 'e.g. campaign_id' }
+        },
+        {
+          name: 'value',
+          type: 'textarea',
+          admin: { placeholder: 'e.g. spring-2026', rows: 2 }
+        }
+      ]
+    },
+    {
+      name: 'allowedTokenShortcodes',
+      type: 'array',
+      labels: { singular: 'Allowed token', plural: 'Filter allowed tokens (optional)' },
+      admin: {
+        description:
+          'Optional. Add ledger shortcodes (e.g. icp, ckbtc) to limit which tokens visitors can pay with. Leave empty to offer every supported token — same as the WordPress ICPay block “Filter allowed tokens”.',
+        initCollapsed: true
+      },
+      fields: [
+        {
+          name: 'tokenShortcode',
+          type: 'text',
+          required: true,
+          admin: { placeholder: 'e.g. icp' }
+        }
+      ]
+    },
     {
       name: 'amountUsd',
       type: 'number',

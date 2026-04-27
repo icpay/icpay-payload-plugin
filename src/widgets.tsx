@@ -15,6 +15,8 @@ export type IcpayWidgetBaseProps = {
   recipientAddress?: string;
   recipientAddresses?: { evm?: string; ic?: string; sol?: string };
   metadata?: Record<string, unknown>;
+  /** When set, checkout only offers these ledger shortcodes (see `@ic-pay/icpay-widget` `CommonConfig`). */
+  tokenShortcodes?: string[];
   onSuccess?: (detail: unknown) => void;
   onError?: (detail: unknown) => void;
 };
@@ -44,6 +46,7 @@ const sharedConfig = (mode: WidgetMode, props: IcpayWidgetBaseProps) => ({
   fiat_currency: props.fiatCurrency ?? 'USD',
   recipientAddress: props.recipientAddress,
   recipientAddresses: props.recipientAddresses,
+  ...(props.tokenShortcodes?.length ? { tokenShortcodes: props.tokenShortcodes } : {}),
   metadata: {
     ...(props.metadata ?? {}),
     icpay_context: `payload-plugin:${mode}`

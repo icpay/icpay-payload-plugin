@@ -2,18 +2,24 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 
+import { normalizeAllowedTokenShortcodes } from './normalizeAllowedTokens';
+import { normalizeWidgetMetadata } from './normalizeMetadata';
+
 export type IcpayLexicalWidgetBlockData = {
   mode?: 'payment' | 'donation' | 'topup';
   title?: string;
   description?: string;
   recipientAddress?: string;
-  metadata?: Record<string, unknown>;
+  /** Array of `{ key, value }` from Payload, or a legacy JSON object. */
+  metadata?: unknown;
   amountUsd?: number;
   goalUsd?: number;
   defaultAmountUsd?: number;
   minUsd?: number;
   maxUsd?: number;
   buttonLabel?: string;
+  /** Rows `{ tokenShortcode }` from Payload; same semantics as WordPress `tokenShortcodes`. */
+  allowedTokenShortcodes?: unknown;
 };
 
 export type IcpayLexicalWidgetDefaults = {
@@ -73,16 +79,24 @@ export function IcpayLexicalWidgetRenderer({ block, defaults }: Props) {
   const recipientAddress =
     block.recipientAddress || defaults.defaultRecipientAddress || undefined;
 
-  const common = useMemo(
-    () => ({
+  const common = useMemo(() => {
+    const tokenShortcodes = normalizeAllowedTokenShortcodes(block.allowedTokenShortcodes);
+    return {
       publishableKey,
       apiUrl,
       fiatCurrency: defaults.fiatCurrency?.trim() || 'USD',
       recipientAddress,
-      metadata: block.metadata
-    }),
-    [apiUrl, block.metadata, defaults.fiatCurrency, publishableKey, recipientAddress]
-  );
+      metadata: normalizeWidgetMetadata(block.metadata),
+      ...(tokenShortcodes?.length ? { tokenShortcodes } : {})
+    };
+  }, [
+    apiUrl,
+    block.allowedTokenShortcodes,
+    block.metadata,
+    defaults.fiatCurrency,
+    publishableKey,
+    recipientAddress
+  ]);
 
   const paymentAmountUsd = block.amountUsd != null ? Number(block.amountUsd) : 1;
   const paymentButtonLabel = block.buttonLabel?.trim() || 'Pay with icpay';

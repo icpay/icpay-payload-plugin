@@ -72,6 +72,10 @@ import { icpayWidgetBlocksFeature } from '@ic-pay/payload-plugin-icpay/lexical';
 
 Optional: add a standalone `blocks` field elsewhere using `createIcpayWidgetsField()` from the same subpath.
 
+Each **ICPay Widget** block includes **Metadata** as repeatable **key / value** rows (Payload `array` field), not a raw JSON textarea—similar to WordPress-style meta. Rows are merged into one object for checkout. Legacy blocks that still store metadata as a JSON object are supported at render time (`normalizeWidgetMetadata`).
+
+**Filter allowed tokens (optional)** matches the WordPress block: an array of rows, each with a **token shortcode** (e.g. `icp`, `ckbtc`). When the list is empty, every supported token is offered (`tokenShortcodes` is omitted from the widget config). Helpers: `normalizeAllowedTokenShortcodes` on `@ic-pay/payload-plugin-icpay/lexical` (and re-exported from `lexical-react`).
+
 **2. Frontend — render Lexical JSON and map embedded widgets** (e.g. Next.js App Router):
 
 The `lexical-react` entry is a **Client Component** (`'use client'`), because `@payloadcms/richtext-lexical/react`’s `RichText` uses client hooks. You may import `IcpayRichText` from a **Server Component** (e.g. a `page.tsx`); Next will render it as a client boundary.
