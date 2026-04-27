@@ -6,6 +6,7 @@
 - Read-only `icpay-payments` storage populated by webhook/sync (not manual admin creation)
 - Global settings for API URL + publishable/secret keys
 - React widget helpers powered by `@ic-pay/icpay-widget` (payments, donations, topups)
+- Optional **Lexical** rich-text integration: insert **ICPay Widget** blocks inline (subpath `@ic-pay/payload-plugin-icpay/lexical`) and render them with `@ic-pay/payload-plugin-icpay/lexical-react`
 - Optional bridge helpers for Payload ecommerce plugin payment hooks
 
 This package is designed as a standalone GitHub/npm repository.
@@ -49,6 +50,45 @@ By default (`createCollections` and `createGlobalSettings` are `true`):
   - `POST /api/icpay/create-payment`
   - `POST /api/icpay/sync-payments`
   - `POST /api/icpay/webhook`
+
+## Lexical rich text (inline widget blocks)
+
+Requires `@payloadcms/richtext-lexical` (same major as your Payload app, e.g. `^3.82`).
+
+**1. Admin — enable the block on your `richText` field** (same idea as WordPress “insert block”):
+
+```ts
+import { lexicalEditor } from '@payloadcms/richtext-lexical';
+import { icpayWidgetBlocksFeature } from '@ic-pay/payload-plugin-icpay/lexical';
+
+{
+  name: 'content',
+  type: 'richText',
+  editor: lexicalEditor({
+    features: ({ defaultFeatures }) => [...defaultFeatures, icpayWidgetBlocksFeature()],
+  }),
+}
+```
+
+Optional: add a standalone `blocks` field elsewhere using `createIcpayWidgetsField()` from the same subpath.
+
+**2. Frontend — render Lexical JSON and map embedded widgets** (e.g. Next.js App Router):
+
+```tsx
+import { IcpayRichText } from '@ic-pay/payload-plugin-icpay/lexical-react';
+
+<IcpayRichText
+  data={page.content}
+  widgetDefaults={{
+    publishableKey: settings?.publishableKey,
+    apiUrl: settings?.apiUrl,
+    fiatCurrency: settings?.defaultFiatCurrency,
+    defaultRecipientAddress: settings?.defaultRecipientAddress,
+  }}
+/>
+```
+
+Use a CSS class on the wrapper via `className` (default `cms-rich-text`) for typography.
 
 ## Endpoints
 
