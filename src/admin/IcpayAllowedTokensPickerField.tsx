@@ -3,10 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useConfig, useField } from '@payloadcms/ui';
 
-import {
-  mapLedgerChainTypeToWidget,
-  type IcpayWidgetChainType
-} from '../lexical/normalizeAllowedTokens';
+import { mapLedgerChainTypeToWidget, type IcpayWidgetChainType } from './icpayLedgerChainTypes';
 
 type LedgerRow = {
   shortcode: string;
