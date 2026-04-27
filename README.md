@@ -49,6 +49,7 @@ By default (`createCollections` and `createGlobalSettings` are `true`):
 - Endpoints:
   - `POST /api/icpay/create-payment`
   - `POST /api/icpay/sync-payments`
+  - `GET /api/icpay/public-ledgers` (admin session; proxies to ICPay `GET /sdk/public/ledgers/all-with-prices` for the Lexical token picker)
   - `POST /api/icpay/webhook`
 
 ## Lexical rich text (inline widget blocks)
@@ -74,7 +75,9 @@ Optional: add a standalone `blocks` field elsewhere using `createIcpayWidgetsFie
 
 Each **ICPay Widget** block includes **Metadata** as repeatable **key / value** rows (Payload `array` field), not a raw JSON textarea—similar to WordPress-style meta. Rows are merged into one object for checkout. Legacy blocks that still store metadata as a JSON object are supported at render time (`normalizeWidgetMetadata`).
 
-**Filter allowed tokens (optional)** matches the WordPress block: an array of rows, each with a **token shortcode** (e.g. `icp`, `ckbtc`). When the list is empty, every supported token is offered (`tokenShortcodes` is omitted from the widget config). Helpers: `normalizeAllowedTokenShortcodes` on `@ic-pay/payload-plugin-icpay/lexical` (and re-exported from `lexical-react`).
+**Filter allowed tokens (optional)** matches the WordPress block: the admin UI loads verified ledgers from your **ICPay API** (using Globals → `icpay-settings` **publishable key** + **API URL**) via **`GET /api{apiBasePath}/public-ledgers`** (admin session required), groups them by **chain**, and stores selected shortcodes as a JSON **`string[]`**. Empty selection = all tokens. Helpers: `normalizeAllowedTokenShortcodes` on `@ic-pay/payload-plugin-icpay/lexical` (and `lexical-react`).
+
+The plugin sets **`config.custom.icpayApiBasePath`** (default `/icpay`) so the admin picker matches your `icpayPayloadPlugin({ apiBasePath })` routes.
 
 **2. Frontend — render Lexical JSON and map embedded widgets** (e.g. Next.js App Router):
 

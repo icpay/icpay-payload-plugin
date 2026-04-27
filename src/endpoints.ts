@@ -377,6 +377,83 @@ export const createIcpayEndpoints = (options: IcpayPluginOptions): Endpoint[] =>
     }
   };
 
+  const publicLedgersEndpoint: Endpoint = {
+    path: `${basePath}/public-ledgers`,
+    method: 'get',
+    handler: async (req) => {
+      try {
+        const user = (req as { user?: unknown }).user;
+        if (!user) {
+          return json(401, { ok: false, error: 'Unauthorized' });
+        }
+
+        const settings = await getSettings(req);
+        const publishableKey = String(
+          settings.publishableKey ?? options.sdk?.publishableKey ?? ''
+        ).trim();
+        const apiUrl = String(settings.apiUrl ?? options.sdk?.apiUrl ?? '').replace(/\/$/, '');
+        if (!publishableKey || !apiUrl) {
+          return json(400, {
+            ok: false,
+            error: 'Set publishableKey and apiUrl in Globals → icpay-settings (or plugin sdk).'
+          });
+        }
+
+        const upstream = `${apiUrl}/sdk/public/ledgers/all-with-prices`;
+        const res = await fetch(upstream, {
+          headers: {
+            Authorization: `Bearer ${publishableKey}`,
+            Accept: 'application/json'
+          }
+        });
+
+        if (!res.ok) {
+          const detail = await res.text().catch(() => '');
+          return json(502, {
+            ok: false,
+            error: `ICPay API ledgers request failed (${res.status}).`,
+            detail: detail.slice(0, 500)
+          });
+        }
+
+        const data = (await res.json()) as unknown;
+        const list = Array.isArray(data) ? data : [];
+        const verified = list.filter((l: any) => l && l.verified === true);
+        const mapped = verified
+          .map((l: any) => ({
+            shortcode: String(l.shortcode || l.symbol || '').trim(),
+            symbol: l.symbol,
+            name: l.name,
+            chainName: String(l.chainName || '').trim() || 'Other'
+          }))
+          .filter((l) => l.shortcode);
+
+        const chainMap = new Map<string, typeof mapped>();
+        for (const item of mapped) {
+          const c = item.chainName;
+          if (!chainMap.has(c)) chainMap.set(c, []);
+          chainMap.get(c)!.push(item);
+        }
+
+        const chains = Array.from(chainMap.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([chainName, ledgers]) => ({
+            chainName,
+            ledgers: ledgers.sort((a, b) =>
+              String(a.symbol || a.shortcode).localeCompare(String(b.symbol || b.shortcode))
+            )
+          }));
+
+        return json(200, { ok: true, chains });
+      } catch (error: any) {
+        return json(500, {
+          ok: false,
+          error: error?.message ?? 'Failed to load ledgers.'
+        });
+      }
+    }
+  };
+
   const clearPaymentsEndpoint: Endpoint = {
     path: `${basePath}/clear-payments`,
     method: 'post',
@@ -420,6 +497,7 @@ export const createIcpayEndpoints = (options: IcpayPluginOptions): Endpoint[] =>
     createPaymentEndpoint,
     syncEndpointPost,
     syncEndpointGet,
+    publicLedgersEndpoint,
     clearPaymentsEndpoint,
     webhookEndpoint,
     ...(options.additionalEndpoints ?? [])

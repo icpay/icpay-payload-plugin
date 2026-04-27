@@ -1,6 +1,6 @@
 /**
- * Payload stores one row per `{ tokenShortcode }`. WordPress stores the same idea as
- * `tokenShortcodes` JSON on the block shortcode.
+ * Normalizes stored widget value into `string[]` for `CommonConfig.tokenShortcodes`.
+ * Supports: JSON `string[]` (admin picker), legacy array of `{ tokenShortcode }` rows, or JSON string.
  */
 export type IcpayAllowedTokenRow = {
   id?: string;
