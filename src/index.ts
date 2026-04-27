@@ -73,6 +73,5 @@ export const icpayPayloadPlugin =
   };
 
 export type * from './types';
-export * from './widgets';
 export * from './commerce';
 export default icpayPayloadPlugin;
