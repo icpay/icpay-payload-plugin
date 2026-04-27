@@ -6,7 +6,14 @@ export {
   type IcpayRichTextProps
 } from './IcpayRichText';
 export { normalizeWidgetMetadata, type IcpayMetadataEntry } from './normalizeMetadata';
-export { normalizeAllowedTokenShortcodes, type IcpayAllowedTokenRow } from './normalizeAllowedTokens';
+export {
+  mapLedgerChainTypeToWidget,
+  normalizeAllowedTokenShortcodes,
+  normalizeAllowedTokensFilter,
+  type IcpayAllowedTokenRow,
+  type IcpayAllowedTokensFilter,
+  type IcpayWidgetChainType
+} from './normalizeAllowedTokens';
 export {
   IcpayLexicalWidgetRenderer,
   type IcpayLexicalWidgetBlockData,

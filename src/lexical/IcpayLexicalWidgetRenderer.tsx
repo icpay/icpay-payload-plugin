@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 
-import { normalizeAllowedTokenShortcodes } from './normalizeAllowedTokens';
+import { normalizeAllowedTokensFilter } from './normalizeAllowedTokens';
 import { normalizeWidgetMetadata } from './normalizeMetadata';
 
 export type IcpayLexicalWidgetBlockData = {
@@ -18,7 +18,10 @@ export type IcpayLexicalWidgetBlockData = {
   minUsd?: number;
   maxUsd?: number;
   buttonLabel?: string;
-  /** Rows `{ tokenShortcode }` from Payload; same semantics as WordPress `tokenShortcodes`. */
+  /**
+   * Admin JSON: legacy `string[]`, or `{ tokenShortcodes, chainTypes }` from the token picker.
+   * Passed to the widget as `tokenShortcodes` / `chainTypes`.
+   */
   allowedTokenShortcodes?: unknown;
 };
 
@@ -80,14 +83,15 @@ export function IcpayLexicalWidgetRenderer({ block, defaults }: Props) {
     block.recipientAddress || defaults.defaultRecipientAddress || undefined;
 
   const common = useMemo(() => {
-    const tokenShortcodes = normalizeAllowedTokenShortcodes(block.allowedTokenShortcodes);
+    const filter = normalizeAllowedTokensFilter(block.allowedTokenShortcodes);
     return {
       publishableKey,
       apiUrl,
       fiatCurrency: defaults.fiatCurrency?.trim() || 'USD',
       recipientAddress,
       metadata: normalizeWidgetMetadata(block.metadata),
-      ...(tokenShortcodes?.length ? { tokenShortcodes } : {})
+      ...(filter.tokenShortcodes?.length ? { tokenShortcodes: filter.tokenShortcodes } : {}),
+      ...(filter.chainTypes?.length ? { chainTypes: filter.chainTypes } : {})
     };
   }, [
     apiUrl,

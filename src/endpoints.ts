@@ -424,7 +424,8 @@ export const createIcpayEndpoints = (options: IcpayPluginOptions): Endpoint[] =>
             shortcode: String(l.shortcode || l.symbol || '').trim(),
             symbol: l.symbol,
             name: l.name,
-            chainName: String(l.chainName || '').trim() || 'Other'
+            chainName: String(l.chainName || '').trim() || 'Other',
+            chainType: l.chainType != null ? String(l.chainType).trim() : null
           }))
           .filter((l) => l.shortcode);
 
