@@ -57,7 +57,7 @@ export type IcpayPluginOptions = {
   collections?: IcpayPluginCollections;
   /**
    * Optional SDK defaults (env). Prefer configuring `icpay-settings` global in admin:
-   * publishableKey, secretKey, apiUrl, webhookSecret.
+   * publishableKey, secretKey, apiUrl.
    */
   sdk?: Partial<Pick<IcpayConfig, 'publishableKey' | 'secretKey' | 'apiUrl' | 'icHost' | 'debug'>>;
   /**
@@ -66,10 +66,15 @@ export type IcpayPluginOptions = {
    */
   enableSyncPaymentsButton?: boolean;
   /**
-   * When true (default), adds a destructive “clear payments” control on Globals → icpay-settings.
+   * When true (default), adds a `ui` field on Globals → icpay-settings with a “clear payments” button.
    * Resolved via `@ic-pay/payload-plugin-icpay/icpay-clear-payments`.
    */
   enableClearPaymentsSettingsButton?: boolean;
+  /**
+   * When true (default), adds a `ui` field at the end of Globals → icpay-settings with the webhook URL and validation notes.
+   * Resolved via `@ic-pay/payload-plugin-icpay/icpay-webhook-help`.
+   */
+  enableWebhookEndpointHelp?: boolean;
   defaults?: {
     fiatCurrency?: string;
     recipientAddress?: string;
@@ -81,7 +86,6 @@ export type IcpayPluginOptions = {
     metadata?: Record<string, unknown>;
   };
   allowedKinds?: IcpayCheckoutKind[];
-  webhookSecret?: string;
   sync?: IcpaySyncOptions;
   createCollections?: boolean;
   createGlobalSettings?: boolean;
@@ -111,7 +115,6 @@ export type IcpayPluginOptions = {
 export type IcpayGlobalSettings = {
   publishableKey?: string;
   secretKey?: string;
-  webhookSecret?: string;
   apiUrl?: string;
   defaultFiatCurrency?: string;
   defaultRecipientAddress?: string;

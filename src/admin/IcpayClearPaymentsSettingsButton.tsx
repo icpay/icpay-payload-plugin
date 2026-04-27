@@ -5,11 +5,13 @@ import { useConfig } from '@payloadcms/ui';
 import { useRouter } from 'next/navigation';
 
 const CONFIRM_MESSAGE =
-  'Delete ALL records in the ICPay Payments collection?\n\n' +
-  'This only removes rows stored in Payload. It does not cancel or refund payments in ICPay. This cannot be undone.';
+  'Delete every row in the ICPay Payments collection?\n\n' +
+  'This only removes payment records stored in Payload (from sync or webhooks). ' +
+  'It does not cancel or refund anything in ICPay.\n\n' +
+  'This cannot be undone.';
 
 /**
- * Shown on Globals → icpay-settings (before document controls).
+ * Renders as a `ui` field on Globals → icpay-settings (below other fields).
  */
 export function IcpayClearPaymentsSettingsButton() {
   const {
@@ -47,33 +49,14 @@ export function IcpayClearPaymentsSettingsButton() {
   };
 
   return (
-    <div
-      style={{
-        marginBottom: '1.5rem',
-        padding: '1rem',
-        border: '1px solid rgba(220, 38, 38, 0.45)',
-        borderRadius: 6,
-        background: 'rgba(220, 38, 38, 0.06)'
-      }}
-    >
-      <p style={{ margin: '0 0 0.75rem', fontWeight: 600, color: '#b91c1c' }}>Danger zone</p>
-      <p style={{ margin: '0 0 1rem', fontSize: 13, lineHeight: 1.45 }}>
-        Permanently remove every document in the <strong>ICPay Payments</strong> collection. This only affects
-        Payload&apos;s copy of payment data (sync/webhook rows). <strong>This cannot be undone.</strong>
-      </p>
-      <button
-        type="button"
-        className="btn btn--style-primary btn--size-medium"
-        style={{ background: '#b91c1c', borderColor: '#991b1b' }}
-        disabled={busy}
-        onClick={onClear}
-      >
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+      <button type="button" className="btn btn--style-secondary btn--size-medium" disabled={busy} onClick={onClear}>
         {busy ? 'Deleting…' : 'Delete all payment records'}
       </button>
       {message ? (
-        <p style={{ marginTop: '0.75rem', marginBottom: 0, fontSize: 13 }} role="status">
+        <span style={{ fontSize: 13 }} role="status">
           {message}
-        </p>
+        </span>
       ) : null}
     </div>
   );

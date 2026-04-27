@@ -75,6 +75,47 @@ const getSettings = async (req: PayloadRequest): Promise<Record<string, unknown>
   }
 };
 
+/** Parse ICPay / JSON date into ISO string for Payload `date` fields. */
+const parseSourceDate = (value: unknown): string | undefined => {
+  if (value == null || value === '') return undefined;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const ms = value < 1e12 ? value * 1000 : value;
+    const d = new Date(ms);
+    return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+  }
+  const d = new Date(value as string | Date);
+  return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+};
+
+/**
+ * `createdAt` / `updatedAt` on icpay-payments come from API / webhook bodies only
+ * (payment + intent + transaction), never Payload’s ingest clock.
+ */
+const timestampsFromSource = (sourcePayment: any): { createdAt?: string; updatedAt?: string } => {
+  const payment = sourcePayment?.payment ?? {};
+  const intent = sourcePayment?.intent ?? sourcePayment?.paymentIntent ?? {};
+  const tx = sourcePayment?.transaction ?? {};
+
+  const created =
+    parseSourceDate(payment.createdAt) ??
+    parseSourceDate(intent.createdAt) ??
+    parseSourceDate(tx.createdAt) ??
+    parseSourceDate((sourcePayment as Record<string, unknown>)?.createdAt);
+
+  const updated =
+    parseSourceDate(payment.updatedAt) ??
+    parseSourceDate(intent.updatedAt) ??
+    parseSourceDate(tx.updatedAt) ??
+    parseSourceDate((sourcePayment as Record<string, unknown>)?.updatedAt) ??
+    created;
+
+  const out: { createdAt?: string; updatedAt?: string } = {};
+  if (created) out.createdAt = created;
+  if (updated) out.updatedAt = updated;
+  else if (created) out.updatedAt = created;
+  return out;
+};
+
 const normalizePaymentRecord = (sourcePayment: any): Record<string, unknown> => {
   // icpay-api `GET /sdk/payments` returns `{ payment, intent, invoice, transaction }` per row.
   const paymentIntent =
@@ -94,6 +135,7 @@ const normalizePaymentRecord = (sourcePayment: any): Record<string, unknown> => 
       ? Number(rawTxId)
       : null;
   return {
+    ...timestampsFromSource(sourcePayment),
     kind: String(paymentIntent?.metadata?.icpay_kind ?? 'payment'),
     status: String(paymentIntent?.status ?? payment?.status ?? 'pending'),
     amountUsd:
@@ -152,23 +194,32 @@ export const createIcpayEndpoints = (options: IcpayPluginOptions): Endpoint[] =>
           checkout.paymentIntentId ??
           null;
 
+        const r = response as any;
+        const aggregate = {
+          payment: r?.payment,
+          intent: r?.payment?.paymentIntent ?? r?.paymentIntent ?? r?.intent,
+          transaction: r?.transaction
+        };
+        const normalized = normalizePaymentRecord(aggregate);
+
         await upsertPayment(
           req,
           paymentsCollection,
           {
-          kind,
-          status: (response as any)?.status ?? 'pending',
-          amountUsd:
-            typeof checkout.amountUsd === 'string'
-              ? Number.parseFloat(checkout.amountUsd)
-              : checkout.amountUsd,
-          fiatCurrency: request.fiat_currency,
-          paymentIntentId: paymentIntentId ?? 'unknown',
-          transactionId: (response as any)?.transactionId ?? null,
-          checkoutUrl: (response as any)?.checkoutUrl ?? null,
-          metadata: request.metadata ?? {},
-          source: 'create-payment',
-          raw: response as unknown as Record<string, unknown>
+            ...normalized,
+            kind,
+            status: r?.status ?? 'pending',
+            amountUsd:
+              typeof checkout.amountUsd === 'string'
+                ? Number.parseFloat(checkout.amountUsd)
+                : checkout.amountUsd,
+            fiatCurrency: request.fiat_currency,
+            paymentIntentId: paymentIntentId ?? 'unknown',
+            transactionId: r?.transactionId ?? normalized.transactionId ?? null,
+            checkoutUrl: r?.checkoutUrl ?? normalized.checkoutUrl ?? null,
+            metadata: request.metadata ?? {},
+            source: 'create-payment',
+            raw: response as unknown as Record<string, unknown>
           },
           paymentIntentId ?? undefined
         );
@@ -275,12 +326,15 @@ export const createIcpayEndpoints = (options: IcpayPluginOptions): Endpoint[] =>
         const payload = (await parseBody(req)) as Record<string, unknown>;
         const incomingSignature = signatureHeader(req);
         const settings = await getSettings(req);
-        const webhookSecret = String(settings.webhookSecret ?? options.webhookSecret ?? '');
+        const merged = mergeSdkFromSettings(options, settings);
+        const secretKey = String(merged.secretKey ?? '');
 
-        if (webhookSecret) {
-          if (!incomingSignature || incomingSignature !== webhookSecret) {
-            return json(401, { ok: false, error: 'Invalid webhook signature.' });
-          }
+        if (!secretKey) {
+          return json(400, { ok: false, error: 'secretKey is required for webhook signature verification.' });
+        }
+
+        if (!incomingSignature || incomingSignature !== secretKey) {
+          return json(401, { ok: false, error: 'Invalid webhook signature.' });
         }
 
         const event: IcpayWebhookRecord = {
