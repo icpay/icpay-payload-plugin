@@ -27,6 +27,14 @@ export const icpayPayloadPlugin =
       ...incomingConfig
     };
 
+    const icpayApiBasePath = rawOptions.apiBasePath ?? '/icpay';
+    config.custom = {
+      ...(typeof incomingConfig.custom === 'object' && incomingConfig.custom !== null
+        ? { ...(incomingConfig.custom as Record<string, unknown>) }
+        : {}),
+      icpayApiBasePath
+    };
+
     const collections = [...(config.collections ?? [])];
     const globals = [...(config.globals ?? [])];
     const endpoints = [...(config.endpoints ?? [])];
