@@ -1,6 +1,6 @@
 {
   "name": "@ic-pay/payload-plugin-icpay",
-  "version": "0.1.9",
+  "version": "0.1.11",
   "description": "Donations, Topups, payments, everything you need to get your site start accepting crypto tokens or fiat payments with ICPay. ICPay plugin for Payload CMS with payment endpoints, widget helpers, and optional commerce hooks. Built by ICPay, Ltd.",
   "type": "module",
   "license": "MIT",
@@ -37,6 +37,14 @@
       "import": "./dist/commerce/index.js",
       "types": "./dist/commerce/index.d.ts"
     },
+    "./lexical": {
+      "import": "./dist/lexical/index.js",
+      "types": "./dist/lexical/index.d.ts"
+    },
+    "./lexical-react": {
+      "import": "./dist/lexical/react.js",
+      "types": "./dist/lexical/react.d.ts"
+    },
     "./icpay-sync-payments": "./src/admin/IcpaySyncPaymentsButton.tsx",
     "./icpay-clear-payments": "./src/admin/IcpayClearPaymentsSettingsButton.tsx",
     "./icpay-webhook-help": "./src/admin/IcpayWebhookEndpointHelp.tsx"
@@ -54,17 +62,24 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
+    "@payloadcms/richtext-lexical": "^3.0.0",
     "@payloadcms/ui": "^3.0.0",
     "next": ">=15",
     "payload": "^3.0.0",
     "react": ">=18",
     "react-dom": ">=18"
   },
+  "peerDependenciesMeta": {
+    "@payloadcms/richtext-lexical": {
+      "optional": true
+    }
+  },
   "dependencies": {
     "@ic-pay/icpay-sdk": "^1.4.109",
     "@ic-pay/icpay-widget": "^1.2.122"
   },
   "devDependencies": {
+    "@payloadcms/richtext-lexical": "3.82.1",
     "@payloadcms/ui": "3.82.1",
     "next": "16.2.3",
     "@types/node": "^24.7.2",
