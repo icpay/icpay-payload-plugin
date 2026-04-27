@@ -1,6 +1,6 @@
 {
   "name": "@ic-pay/payload-plugin-icpay",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "description": "Donations, Topups, payments, everything you need to get your site start accepting crypto tokens or fiat payments with ICPay. ICPay plugin for Payload CMS with payment endpoints, widget helpers, and optional commerce hooks. Built by ICPay, Ltd.",
   "type": "module",
   "license": "MIT",
