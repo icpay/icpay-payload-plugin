@@ -1,3 +1,5 @@
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
 import type { Endpoint, PayloadRequest } from 'payload';
 import type { IcpayPluginOptions, IcpayCheckoutInput, IcpayWebhookRecord } from './types';
 import { createIcpayClient, mergeSdkFromSettings, toCreateTransactionRequest } from './sdk';
@@ -21,9 +23,135 @@ const parseCheckoutInput = async (req: PayloadRequest): Promise<IcpayCheckoutInp
 const signatureHeader = (req: PayloadRequest): string | undefined => {
   return (
     req.headers.get('x-icpay-signature') ??
+    req.headers.get('X-ICPay-Signature') ??
     req.headers.get('x-icpay-webhook-signature') ??
+    req.headers.get('X-ICPay-Webhook-Signature') ??
     undefined
   );
+};
+
+/**
+ * icpay-api signs webhooks like Stripe: `t=<unix>,v1=<hex>` over `${t}.${rawBody}` with the account SDK secret.
+ * @see icpay-api `WebhooksService.generateWebhookSignature` / `verifyWebhookSignature`
+ */
+const verifyIcpayApiWebhookSignature = (
+  rawBody: string,
+  signatureHeader: string,
+  secretKey: string,
+  toleranceSeconds = 300
+): boolean => {
+  try {
+    const parts = signatureHeader.split(',');
+    const timestampPart = parts.find((p) => p.trim().startsWith('t='));
+    const signaturePart = parts.find((p) => p.trim().startsWith('v1='));
+    if (!timestampPart || !signaturePart) return false;
+    const timestamp = parseInt(timestampPart.split('=')[1]?.trim() ?? '', 10);
+    const expectedHex = signaturePart.split('=')[1]?.trim() ?? '';
+    if (!Number.isFinite(timestamp) || !expectedHex) return false;
+    const now = Math.floor(Date.now() / 1000);
+    if (Math.abs(now - timestamp) > toleranceSeconds) return false;
+    const signedPayload = `${timestamp}.${rawBody}`;
+    const computedHex = createHmac('sha256', secretKey).update(signedPayload, 'utf8').digest('hex');
+    const a = Buffer.from(expectedHex, 'hex');
+    const b = Buffer.from(computedHex, 'hex');
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+};
+
+/** WordPress plugin style: `hash_hmac('sha256', rawBody, secret)` hex compared to header. */
+const verifyWooStyleWebhookSignature = (rawBody: string, signatureHeader: string, secretKey: string): boolean => {
+  const calc = createHmac('sha256', secretKey).update(rawBody, 'utf8').digest('hex');
+  const sig = signatureHeader.trim();
+  if (sig.length !== calc.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(sig, 'utf8'), Buffer.from(calc, 'utf8'));
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * When `secretKey` is unset, accept (same as WooCommerce with empty secret).
+ * When set: accept icpay-api `t=,v1=` **or** legacy whole-body HMAC hex.
+ */
+const verifyIncomingWebhookSignature = (
+  rawBody: string,
+  signatureHeader: string | undefined,
+  secretKey: string
+): boolean => {
+  const secret = String(secretKey ?? '').trim();
+  if (!secret) return true;
+  if (!signatureHeader?.trim()) return false;
+  const sig = signatureHeader.trim();
+  if (sig.includes('t=') && sig.includes('v1=')) {
+    return verifyIcpayApiWebhookSignature(rawBody, sig, secret);
+  }
+  return verifyWooStyleWebhookSignature(rawBody, sig, secret);
+};
+
+/** Stripe-like envelope `{ type, data: { object } }` or raw aggregate / flat payment row. */
+const unwrapWebhookEnvelope = (input: unknown): Record<string, unknown> => {
+  if (input == null || typeof input !== 'object') return {};
+  const root = input as Record<string, unknown>;
+  const data = root.data;
+  if (data && typeof data === 'object') {
+    const d = data as Record<string, unknown>;
+    if (d.object != null && typeof d.object === 'object') {
+      return d.object as Record<string, unknown>;
+    }
+    return d;
+  }
+  return root;
+};
+
+/**
+ * `GET /sdk/payments` rows look like `{ payment, intent, transaction }`.
+ * icpay-api outbound webhooks put a **flat** payment row in `data.object` (with nested `intent` summary).
+ */
+const coercePaymentPayloadForNormalization = (input: unknown): Record<string, unknown> => {
+  const root = unwrapWebhookEnvelope(input);
+  if (!root || typeof root !== 'object') return root as Record<string, unknown>;
+
+  const hasNestedPayment = root.payment != null && typeof root.payment === 'object';
+  if (hasNestedPayment) return root;
+
+  const paymentIntentId = root.paymentIntentId;
+  const intent = (root.intent as Record<string, unknown> | null) || null;
+
+  if (paymentIntentId == null && intent == null) return root;
+
+  const intentObj: Record<string, unknown> =
+    intent && typeof intent === 'object'
+      ? intent
+      : { id: paymentIntentId, metadata: (root.metadata as Record<string, unknown>) || {} };
+
+  const txId = root.transactionId;
+  const syntheticPayment: Record<string, unknown> = {
+    id: root.id,
+    status: root.status,
+    paymentIntentId,
+    transactionId: txId,
+    createdAt: root.createdAt,
+    updatedAt:
+      root.completedAt ?? root.updatedAt ?? root.failedAt ?? root.cancelledAt ?? root.refundedAt ?? root.createdAt,
+    amountUsd: root.amountUsd ?? intentObj.amountUsd,
+    metadata: (root.metadata as Record<string, unknown>) ?? intentObj.metadata ?? {}
+  };
+  if (root.amount != null) syntheticPayment.amount = root.amount;
+
+  const out: Record<string, unknown> = {
+    ...root,
+    payment: syntheticPayment,
+    intent: intentObj,
+    paymentIntent: intentObj
+  };
+  if (txId != null && String(txId).trim() !== '') {
+    out.transaction = { id: txId, createdAt: root.createdAt, updatedAt: root.updatedAt };
+  }
+  return out;
 };
 
 const upsertPayment = async (
@@ -117,25 +245,22 @@ const timestampsFromSource = (sourcePayment: any): { createdAt?: string; updated
 };
 
 const normalizePaymentRecord = (sourcePayment: any): Record<string, unknown> => {
+  const src = coercePaymentPayloadForNormalization(sourcePayment) as any;
   // icpay-api `GET /sdk/payments` returns `{ payment, intent, invoice, transaction }` per row.
-  const paymentIntent =
-    sourcePayment?.paymentIntent ?? sourcePayment?.intent ?? sourcePayment ?? {};
-  const payment = sourcePayment?.payment ?? {};
-  const tx = sourcePayment?.transaction;
+  // Webhooks use Stripe-like `{ data: { object: flatPayment } } }` — coerced above.
+  const paymentIntent = src?.paymentIntent ?? src?.intent ?? src ?? {};
+  const payment = src?.payment ?? {};
+  const tx = src?.transaction;
   const paymentIntentId = String(
-    paymentIntent?.id ??
-      payment?.paymentIntentId ??
-      sourcePayment?.paymentIntentId ??
-      ''
+    paymentIntent?.id ?? payment?.paymentIntentId ?? src?.paymentIntentId ?? ''
   );
-  const rawTxId =
-    payment?.transactionId ?? tx?.id ?? sourcePayment?.transactionId ?? null;
+  const rawTxId = payment?.transactionId ?? tx?.id ?? src?.transactionId ?? null;
   const txIdParsed =
     rawTxId != null && String(rawTxId).trim() !== '' && !Number.isNaN(Number(rawTxId))
       ? Number(rawTxId)
       : null;
   return {
-    ...timestampsFromSource(sourcePayment),
+    ...timestampsFromSource(src),
     kind: String(paymentIntent?.metadata?.icpay_kind ?? 'payment'),
     status: String(paymentIntent?.status ?? payment?.status ?? 'pending'),
     amountUsd:
@@ -318,39 +443,75 @@ export const createIcpayEndpoints = (options: IcpayPluginOptions): Endpoint[] =>
     }
   };
 
+  const readWebhookRawBody = async (req: PayloadRequest): Promise<string> => {
+    const withText = req as PayloadRequest & { text?: () => Promise<string> };
+    if (typeof withText.text === 'function') {
+      return withText.text();
+    }
+    const asRequest = req as unknown as { arrayBuffer?: () => Promise<ArrayBuffer> };
+    if (typeof asRequest.arrayBuffer === 'function') {
+      const buf = await asRequest.arrayBuffer();
+      return Buffer.from(buf).toString('utf8');
+    }
+    return '';
+  };
+
   const webhookEndpoint: Endpoint = {
     path: `${basePath}/webhook`,
     method: 'post',
     handler: async (req) => {
       try {
-        const payload = (await parseBody(req)) as Record<string, unknown>;
+        const rawBody = await readWebhookRawBody(req);
+        if (!rawBody.trim()) {
+          return json(400, { ok: false, error: 'Empty body.' });
+        }
+
         const incomingSignature = signatureHeader(req);
         const settings = await getSettings(req);
         const merged = mergeSdkFromSettings(options, settings);
         const secretKey = String(merged.secretKey ?? '');
 
-        if (!secretKey) {
-          return json(400, { ok: false, error: 'secretKey is required for webhook signature verification.' });
-        }
-
-        if (!incomingSignature || incomingSignature !== secretKey) {
+        if (!verifyIncomingWebhookSignature(rawBody, incomingSignature, secretKey)) {
           return json(401, { ok: false, error: 'Invalid webhook signature.' });
         }
 
+        let parsed: Record<string, unknown>;
+        try {
+          parsed = JSON.parse(rawBody) as Record<string, unknown>;
+        } catch {
+          return json(400, { ok: false, error: 'Invalid JSON body.' });
+        }
+
+        const inner = unwrapWebhookEnvelope(parsed);
+        const intentObj =
+          inner.intent && typeof inner.intent === 'object' ? (inner.intent as Record<string, unknown>) : null;
+        const resolvedIntentId =
+          inner.paymentIntentId != null
+            ? String(inner.paymentIntentId)
+            : intentObj?.id != null
+              ? String(intentObj.id)
+              : '';
+
         const event: IcpayWebhookRecord = {
-          eventType: String(payload.type ?? payload.eventType ?? 'unknown'),
-          eventId: payload.id ? String(payload.id) : undefined,
-          paymentIntentId:
-            payload.paymentIntentId
-              ? String(payload.paymentIntentId)
-              : payload.paymentIntent && typeof payload.paymentIntent === 'object'
-                ? String((payload.paymentIntent as Record<string, unknown>).id ?? '')
-                : undefined,
+          eventType: String(parsed.type ?? parsed.eventType ?? 'unknown'),
+          eventId: parsed.id ? String(parsed.id) : undefined,
+          paymentIntentId: resolvedIntentId || undefined,
           signature: incomingSignature,
-          payload
+          payload: parsed
         };
 
-        const webhookPayment = normalizePaymentRecord(payload);
+        const webhookPayment = normalizePaymentRecord(parsed);
+        const upsertKey = String(
+          event.paymentIntentId ?? webhookPayment.paymentIntentId ?? ''
+        ).trim();
+        if (!upsertKey || upsertKey === 'unknown') {
+          return json(200, {
+            ok: true,
+            ignored: true,
+            reason: 'missing_payment_intent_id'
+          });
+        }
+
         await upsertPayment(
           req,
           paymentsCollection,
@@ -360,7 +521,7 @@ export const createIcpayEndpoints = (options: IcpayPluginOptions): Endpoint[] =>
             lastWebhookEventId: event.eventId ?? null,
             raw: event.payload
           },
-          event.paymentIntentId ?? String(webhookPayment.paymentIntentId ?? '')
+          upsertKey
         );
 
         if (options.onWebhook) {

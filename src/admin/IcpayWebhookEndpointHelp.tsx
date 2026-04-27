@@ -63,10 +63,13 @@ export function IcpayWebhookEndpointHelp() {
         aria-label="ICPay webhook URL for Payload"
       />
       <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: 'var(--theme-elevation-800, #333)' }}>
-        Use the same <strong>SDK secret key</strong> configured above (<code style={{ fontSize: 12 }}>secretKey</code>) in icpay-api.
-        Each <code style={{ fontSize: 12 }}>POST</code> must include header <code style={{ fontSize: 12 }}>x-icpay-signature</code>{' '}
-        or <code style={{ fontSize: 12 }}>x-icpay-webhook-signature</code> whose value <strong>exactly matches</strong> that
-        secret key, or Payload responds with <code style={{ fontSize: 12 }}>401</code>.
+        Use the same <strong>SDK secret key</strong> as <code style={{ fontSize: 12 }}>secretKey</code> above. icpay-api sends{' '}
+        <code style={{ fontSize: 12 }}>X-ICPay-Signature</code> as{' '}
+        <code style={{ fontSize: 12 }}>t=&lt;unix&gt;,v1=&lt;hex&gt;</code>, where v1 is HMAC-SHA256 of the string{' '}
+        <em>timestamp + dot + raw POST body</em>, keyed by that secret (same algorithm as icpay-api webhooks). If{' '}
+        <code style={{ fontSize: 12 }}>secretKey</code> is empty, verification is skipped (like WooCommerce with no secret).
+        A plain hex HMAC of the raw body (no <code style={{ fontSize: 12 }}>t=</code> prefix) is also accepted for older
+        clients.
       </p>
       <p style={{ margin: '0.75rem 0 0', fontSize: 13, lineHeight: 1.5, color: 'var(--theme-elevation-800, #333)' }}>
         Valid requests are normalized and upserted into the <strong>ICPay Payments</strong> collection.

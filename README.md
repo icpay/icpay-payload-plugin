@@ -142,14 +142,15 @@ sync: {
 
 ### `POST /api/icpay/webhook`
 
-Receives ICPay webhook payloads and optionally checks the request signature with:
+Receives Stripe-shaped events from **icpay-api** (`type`, `data.object`, …). Headers:
 
-- `x-icpay-signature`
-- or `x-icpay-webhook-signature`
+- `X-ICPay-Signature` (or `x-icpay-signature` / `x-icpay-webhook-signature`)
 
-Webhook signatures are validated against **secretKey** (from **icpay-settings** or plugin `sdk.secretKey`). The `x-icpay-signature` / `x-icpay-webhook-signature` header must exactly equal that secret key, otherwise Payload returns `401`. If `secretKey` is missing, webhook endpoint returns `400`.
+**icpay-api** signs with **`t=<unix>,v1=<hex>`**: `v1` is HMAC-SHA256 of the UTF-8 string `timestamp + '.' + rawJsonBody` using the account **SDK secret key** (same as `secretKey` in Globals). Payload verifies using the **exact raw POST bytes** (important for HMAC).
 
-Webhook confirmations are upserted directly into `icpay-payments` (`source: webhook`).
+If **`secretKey` is unset**, signature verification is **skipped** (same idea as the WooCommerce plugin with no secret). For older clients, a header value that is a **single hex string** (whole-body HMAC-SHA256, no `t=` / `v1=` parts) is also accepted.
+
+Payload unwraps `data.object`, normalizes the flat payment row into the same shape as **`GET /sdk/payments`**, and upserts **`icpay-payments`** (`source: webhook`). Events without a resolvable `paymentIntentId` return **`200`** with `{ ignored: true }` and do not write a row.
 
 **Admin:** Globals → **icpay-settings** ends with an **Inbound webhooks** block showing the full webhook URL (from `serverURL` + `/api` + `apiBasePath` + `/webhook`). Override the path segment with `NEXT_PUBLIC_ICPAY_API_BASE` in the Next app if you change `apiBasePath` from `/icpay`.
 
