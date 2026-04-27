@@ -1,6 +1,6 @@
 {
   "name": "@ic-pay/payload-plugin-icpay",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Donations, Topups, payments, everything you need to get your site start accepting crypto tokens or fiat payments with ICPay. ICPay plugin for Payload CMS with payment endpoints, widget helpers, and optional commerce hooks. Built by ICPay, Ltd.",
   "type": "module",
   "license": "MIT",
@@ -38,7 +38,8 @@
       "types": "./dist/commerce/index.d.ts"
     },
     "./icpay-sync-payments": "./src/admin/IcpaySyncPaymentsButton.tsx",
-    "./icpay-clear-payments": "./src/admin/IcpayClearPaymentsSettingsButton.tsx"
+    "./icpay-clear-payments": "./src/admin/IcpayClearPaymentsSettingsButton.tsx",
+    "./icpay-webhook-help": "./src/admin/IcpayWebhookEndpointHelp.tsx"
   },
   "files": [
     "dist",

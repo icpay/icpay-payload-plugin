@@ -4,7 +4,7 @@
 
 - ICPay server endpoints for creating and tracking payments
 - Read-only `icpay-payments` storage populated by webhook/sync (not manual admin creation)
-- Global settings for API URL + publishable/secret/webhook keys
+- Global settings for API URL + publishable/secret keys
 - React widget helpers powered by `@ic-pay/icpay-widget` (payments, donations, topups)
 - Optional bridge helpers for Payload ecommerce plugin payment hooks
 
@@ -98,18 +98,22 @@ Receives ICPay webhook payloads and optionally checks the request signature with
 - `x-icpay-signature`
 - or `x-icpay-webhook-signature`
 
-If `webhookSecret` is set, one of those headers must match it.
+Webhook signatures are validated against **secretKey** (from **icpay-settings** or plugin `sdk.secretKey`). The `x-icpay-signature` / `x-icpay-webhook-signature` header must exactly equal that secret key, otherwise Payload returns `401`. If `secretKey` is missing, webhook endpoint returns `400`.
+
 Webhook confirmations are upserted directly into `icpay-payments` (`source: webhook`).
+
+**Admin:** Globals → **icpay-settings** ends with an **Inbound webhooks** block showing the full webhook URL (from `serverURL` + `/api` + `apiBasePath` + `/webhook`). Override the path segment with `NEXT_PUBLIC_ICPAY_API_BASE` in the Next app if you change `apiBasePath` from `/icpay`.
 
 ## Admin behavior
 
-- `icpay-payments` is read-only from admin (`create/update/delete` disabled)
+- `icpay-payments` is read-only from admin (`create/update/delete` disabled). Collection **`timestamps: false`**: `createdAt` / `updatedAt` are explicit date fields filled only from ICPay API / webhook payloads (payment + intent + transaction), not Payload ingest time.
 - no separate webhook collection is created
 - **Sync button** (default on): above the payments list, calls `POST /api/icpay/sync-payments` with the admin session and refreshes the list. The component is exposed as the package subpath `@ic-pay/payload-plugin-icpay/icpay-sync-payments` (not a filesystem path) so `payload generate:importmap` and Next resolve it in Docker and locally. Requires `next`, `@payloadcms/ui`, and `transpilePackages: ['@ic-pay/payload-plugin-icpay']` in `next.config`.
-- **Clear payments** (default on): on **Globals → icpay-settings**, a danger-zone control calls `POST /api/icpay/clear-payments` (admin session) to delete every document in `icpay-payments`, with browser confirm + on-screen warning. Subpath: `@ic-pay/payload-plugin-icpay/icpay-clear-payments`.
+- **Clear payments** (default on): **Globals → icpay-settings** includes a `ui` field with a normal button that calls `POST /api/icpay/clear-payments` (admin session) after a browser `confirm()` explaining the impact. Subpath: `@ic-pay/payload-plugin-icpay/icpay-clear-payments`.
+- **Webhook URL help** (default on): last block on **icpay-settings** shows the POST URL for icpay-api and how `x-icpay-signature` / `x-icpay-webhook-signature` relate to **secretKey**. Subpath: `@ic-pay/payload-plugin-icpay/icpay-webhook-help`.
 - use the sync endpoint (or your own scheduler) to pull historical records from icpay-api
 
-Configure **publishable key, secret key, API URL, webhook secret** in **Globals → icpay-settings**. Optional plugin `sdk` values merge as fallbacks when a global field is empty.
+Configure **publishable key, secret key, API URL** in **Globals → icpay-settings**. Optional plugin `sdk` values merge as fallbacks when a global field is empty.
 
 ## Widget Helpers (Frontend / Next.js)
 
